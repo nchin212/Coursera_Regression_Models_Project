@@ -1,0 +1,128 @@
+---
+title: "Analysis of mtcars Dataset"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+## Synopsis
+
+Motor Trend, a magazine about the automobile industry, is interested in exploring the relationship between a set of variables and miles per gallon (MPG) (outcome) in a data set of a collection of cars (mtcars). The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973--74 models).
+
+In this project, we will answer the following questions:
+
+* Is an automatic or manual transmission better for MPG?
+
+* What is the MPG difference between automatic and manual transmissions?
+
+## Loading the Data
+
+Load in required libraries.
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+We first load in the dataset and observe its first few rows and structure.
+```{r}
+data(mtcars)
+head(mtcars)
+str(mtcars)
+```
+
+Let's convert some of the variables to categorical.
+```{r}
+mtcars$vs <- as.factor(mtcars$vs)
+mtcars$am <- as.factor(mtcars$am)
+```
+
+## Exploratory Data Analysis
+
+Now, we create a boxplot to compare the MPG values for automatic and manual transmissions.
+```{r}
+ggplot(mtcars, aes(x=am, y=mpg, fill=am)) + geom_boxplot() + xlab("Transmission Type") + ylab("Miles/(US) gallon (MPG)") + ggtitle("MPG for each Transmission Type") + guides(fill=guide_legend(title="0 = automatic, 1 = manual")) + theme(plot.title = element_text(hjust = 0.5))
+```
+
+The median MPG for manual transmissions is higher, indicating that cars with manual transmission generally have higher MPG values than cars with automatic transmission. To further support this observation, we can perform a t test as shown in the Appendix.
+
+## Model Fitting
+
+### Simple Linear Regresssion
+
+Let's run a simple linear regression, using transmission type to predict MPG.
+```{r}
+# Model 1
+fit <- lm(mpg ~ am, data= mtcars)
+summary(fit)
+```
+The t test has a p-value of 0.000285 < 0.05, so we reject the null hypothesis at 95% confidence level and conclude that the difference in mean MPG of 7.245 between automatic and manual transmission is statistically significant.
+
+However, the R-squared value is only 0.3598, meaning that only about 36% of variation in the response variable (MPG) can be explained by the predictor variable (am). This indicates that there could be other predictor variables that affect MPG.
+
+### Multiple Linear Regression
+
+Let's try some multiple linear regression models, with each model adding some new predictor variables. We then run ANOVA to perform nested model testing, to determine if the inclusion of extra predictor variables is necessary.
+```{r}
+# Model 2
+fit2 <- lm(mpg ~ am + cyl + hp, data= mtcars)
+# Model 3
+fit3 <- lm(mpg ~ am + cyl + hp + wt + disp, data= mtcars)
+anova(fit, fit2, fit3)
+```
+
+From the ANOVA table, we observe that from Model 1 to Model 2, the p-value = 1.199e-08 < 0.05, indicating that the inclusion of `cyl` and `hp` significantly improved the model. Similarly, from Model 2 to Model 3, the p-value = 0.01981 < 0.05, indicating that the inclusion of `wt` and `disp` further improved Model 2. This suggests that we should use Model 3 to fit the data.
+
+We check the accuracy of Model 3 as follows:
+```{r}
+summary(fit3)
+```
+The R-squared is 0.8551, indicating that about 85.5% of variation in the response variable can be explained by the predictor variables, which is a very good result.
+
+We also check the validity of the model using residual analysis in the Appendix.
+
+## Results
+
+From our analysis, we were able to determine that manual transmission is better for MPG than automatic transmission since the difference in mean MPG of 7.542 is statistically significant. 
+
+MPG is also not just determined by transmission type, but also determined by multiple variables. The model chosen offers a good fit to the data but it may not be the most accurate one. Other techniques could have been used to select the best predictors for the model.
+
+
+## Appendix
+
+### T test
+
+We want to determine if cars with manual transmission have higher MPG values than cars with automatic transmission.
+
+First, we find out the mean MPGs for automatic and manual transmission.
+```{r}
+auto <- mtcars %>% filter(am == 0) %>% select(mpg)
+manual <- mtcars %>% filter(am == 1) %>% select(mpg)
+mean(auto$mpg)
+mean(manual$mpg)
+```
+
+We observe that manual transmission has a higher mean MPG than automatic transmission. To determine if this difference is significant, we can perform a t test as shown below:
+```{r}
+t.test(auto, manual, var.equal = FALSE)
+```
+
+The p-value = 0.001374 < 0.05, so we reject the null hypothesis that the means are equal at 95% level of confidence. This means that the difference in mean MPG for automatic and manual transmission is significant, indicating that cars with manual transmission have higher MPG values than cars with automatic transmission.
+
+### Residual Analysis
+
+We plot the residuals as follows:
+```{r}
+par(mfrow = c(2,2))
+plot(fit3)
+```
+
+From the residuals vs fitted values plot, it has relatively equally spread residuals around the horizontal line without a distinct pattern. This indicates that a linear model is valid.
+
+From the QQ plot, most of the points lie close to the line and there is no substantial departure from the line, indicating that the data is approximately normally distributed.
+
+
+
+
+
